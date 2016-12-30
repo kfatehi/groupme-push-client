@@ -8,12 +8,9 @@ const RestClient = require('./rest-client')
 class Subscription extends EventEmitter {}
 
 class Client {
-  constructor(config) {
-    this.api = RestClient(config);
-    this.ACCESS_TOKEN = config.ACCESS_TOKEN;
-    if ( !config.ACCESS_TOKEN ) {
-      throw new Error('push client requires access token');
-    }
+  constructor(token) {
+    this.token = token;
+    this.api = new RestClient(token);
     this.clientId = null;
     this.msgId = 0;
     this.ws = null;
@@ -79,7 +76,7 @@ class Client {
         "channel":"/meta/subscribe",
         "clientId":this.clientId,
         "subscription":subName,
-        "ext":{"access_token":this.ACCESS_TOKEN}
+        "ext":{"access_token":this.token}
       })
     });
   }
