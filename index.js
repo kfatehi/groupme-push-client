@@ -1,3 +1,4 @@
+const debug = require('debug')('groupme-push-client:index');
 const { ACCESS_TOKEN, USER_ID } = require('./config');
 
 if (!ACCESS_TOKEN || !USER_ID) {
@@ -5,89 +6,41 @@ if (!ACCESS_TOKEN || !USER_ID) {
   process.exit(1);
 }
 
-const ENDPOINT = "https://push.groupme.com/faye";
+const { connect } = require('./src/push-client')({
+  ACCESS_TOKEN,
+  USER_ID
+});
+
+const { getGroups } = require('./src/rest-client')({
+  ACCESS_TOKEN
+});
+
 const USER_SUB = `/user/${USER_ID}`;
-const WebSocket = require('ws');
-const ws = new WebSocket('wss://push.groupme.com/faye');
 
-let outboundMessagesCount = 0;
-const send = (_obj) => {
-  // i have to keep incrementing id according to their docs lol
-  // https://dev.groupme.com/tutorials/push
-  let obj = Object.assign({}, _obj, {id: ++outboundMessagesCount});
-  ws.send(JSON.stringify(obj))
-  console.log('sent data', obj);
-};
+const conn = connect()
 
-ws.on('open', function open() {
-  console.log('opened');
-  CHANNELS['/meta/handshake'].start();
-});
+conn.on('handshake:success', ()=>{
+  conn.on(`/user/${USER_ID}:line.create`, (data)=>{
+    debug('USER CHANNEL EVENT', data);
+  })
+  conn.once(`/user/${USER_ID}:subscribed`, ()=>{
+    getGroups().then(({data:{response}}) => {
+      let groups = response;
+      // groups seems to be in a good order already wherein we can take the first
+      // lets subscribe to BridgeTest group
+      return testGroup = groups.find(g=>g.name === "BridgeTest");
+    }).then(group=>{
+      return conn.subscribe(`/group/${group.id}`)
+    }).then(sub=>{
 
-ws.on('message', function(jsonString, flags) {
-  let data = JSON.parse(jsonString)[0];
-  console.log('got data', JSON.stringify(data, null, 2));
+    }).catch(err=>{
+      debug(err);
+    })
+  })
+  conn.subscribe(USER_SUB).then(userSub => {
+    console.log('user subbed', userSub);
+  });
+})
 
-  let ch = CHANNELS[data.channel];
-  if ( ch ) {
-    ch.handle(data);
-  } else {
-    console.log('donno how to handle that message!');
-  }
-});
-
-const STATE = {};
-
-const CHANNELS = {
-  '/meta/handshake': {
-    start: () => {
-      send({
-        "channel":"/meta/handshake",
-        "version":"1.0",
-        "supportedConnectionTypes":["callback-polling"]
-      });
-    },
-    handle: ({successful, clientId}) => {
-      STATE.clientId = clientId;
-      if ( successful ) {
-        console.log('handshake success');
-        CHANNELS['/meta/subscribe'].user()
-      } else {
-        console.log('handshake unsuccessful!');
-      }
-    }
-  },
-  '/meta/subscribe': {
-    user: () => {
-      send({
-        "channel":"/meta/subscribe",
-        "clientId":STATE.clientId,
-        "subscription":USER_SUB,
-        "ext":{"access_token":ACCESS_TOKEN}
-      });
-      setInterval(CHANNELS[USER_SUB].ping, 30000);
-    },
-    handle: ({successful, subscription}) => {
-      if (!successful) throw new Error('unsuccessful sub to '+subscription);
-    }
-  },
-  [USER_SUB]: {
-    ping: () => {
-      send({
-        "channel":USER_SUB,
-        "data":{"type":"ping"},
-        "clientId":STATE.clientId,
-        "ext":{"access_token":ACCESS_TOKEN}
-      })
-    },
-    handle: ({data}) => {
-      if ( !data ) return;
-      switch (data.type) {
-        case 'ping':
-          return // do nothing
-        default:
-          console.log('unhandled user channel message', data);
-      }
-    }
-  }
+function getTestRoom() {
 }

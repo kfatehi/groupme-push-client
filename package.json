@@ -10,6 +10,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^0.15.3",
+    "bluebird": "^3.4.7",
+    "debug": "^2.6.0",
     "ws": "^1.1.1"
   }
 }
