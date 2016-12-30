@@ -1,6 +1,6 @@
-const { ACCESS_TOKEN, USER_ID } = require('./config');
+const { ACCESS_TOKEN } = require('./config');
 
-if (!ACCESS_TOKEN || !USER_ID) {
+if (!ACCESS_TOKEN ) {
   console.error('create config.js per the sample file');
   process.exit(1);
 }
@@ -8,8 +8,11 @@ if (!ACCESS_TOKEN || !USER_ID) {
 const Client = require('./')
 const client = new Client(ACCESS_TOKEN);
 
-client.connect().then((client) => {
-  return client.subscribe(`/user/${USER_ID}`).then(userSub => {
+client.connect().then(() => {
+  return client.api.getMe();
+}).then(user => {
+  console.log(user);
+  return client.subscribe(`/user/${user.id}`).then(userSub => {
     console.log('subscribed to user messages');
     userSub.on('direct_message.create', function(data) {
       console.log('got a direct message:', data.alert);
@@ -20,8 +23,7 @@ client.connect().then((client) => {
   })
 }).then(()=>{
   return client.api.getGroups()
-}).then(({data:{response}}) => {
-  let groups = response;
+}).then(groups => {
   return groups[0];
 }).then(group => {
   let sendMessage = client.api.sendGroupMessage(group.id);
