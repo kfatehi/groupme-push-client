@@ -18,6 +18,9 @@ class RestClient {
   getMe() {
     return get(this.url('users/me')).then(resolveData)
   }
+  showGroup(id) {
+    return get(this.url(`groups/${id}`)).then(resolveData)
+  }
   getGroups() {
     return get(this.url('groups')).then(resolveData)
   }
